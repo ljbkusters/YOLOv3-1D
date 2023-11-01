@@ -1,0 +1,4 @@
+# many to 1 relationship
+# each series may have multiple labels
+series, label
+test_1.npy, test_1.csv
