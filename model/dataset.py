@@ -76,12 +76,11 @@ class YOLO1DDataset(torch.utils.data.Dataset):
             series = augmetnations["series"]
             bboxes = augmetnations["bboxes"]
 
-        # grid_size in img = N x N
-        # now: N
-        # target has size [N scale predictions (3 by default),
-        #                  number of grid spots,
-        #                  (objectness_score, x_anchor, x_width, class)
-        #                  ]
+        # Target specification
+        # target has size
+        # (N scale predictions (3 by default),
+        #  number of grid spots,
+        #  (objectness_score (float), x_anchor (float), x_width (float), class (int)))
         targets = [torch.zeros((self.num_anchors_per_scale, grid_size, 4))
                    for grid_size in self.grids]
 
