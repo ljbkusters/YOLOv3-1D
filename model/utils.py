@@ -315,37 +315,62 @@ def cells_to_bboxes(predictions, anchors, S, is_preds=True):
     be relative to the entire image such that they for example later
     can be plotted or.
     INPUT:
-    predictions: tensor of size (N, 3, S, S, num_classes+5)
+    predictions: tensor of size (N, 1, S, 3+num_classes)
     anchors: the anchors used for the predictions
     S: the number of cells the image is divided in on the width (and height)
     is_preds: whether the input is predictions or the true bounding boxes
     OUTPUT:
-    converted_bboxes: the converted boxes of sizes (N, num_anchors, S, S, 1+5) with class index,
+    converted_bboxes: the converted boxes of sizes (N, num_anchors, S, 1+3) with class index,
                       object score, bounding box coordinates
+
+    prediction to bbox
+    1. calculate variables relative to cell
+    prediction (N, n_cells @ scale, n_anchors @ scale, (obj_score, t_x0, t_w, *one_hot_casses))
+    cell_x0 = sigmoid(t_x0) (relative to cell)
+    cell_w = base_anchor * exp(t_w) (relative to cell)
+    best class = argmax(one_hot_classes)
+
+    1. calculate variables relative to input
+    x0 = (cell_idx + x0) * cell scale (relative to input)
+    w = (width) * cell scale (relative to input)
     """
     BATCH_SIZE = predictions.shape[0]
     num_anchors = len(anchors)
-    box_predictions = predictions[..., 1:5]
+    box_predictions = predictions[..., 1:3]
     if is_preds:
-        anchors = anchors.reshape(1, len(anchors), 1, 1, 2)
-        box_predictions[..., 0:2] = torch.sigmoid(box_predictions[..., 0:2])
-        box_predictions[..., 2:] = torch.exp(box_predictions[..., 2:]) * anchors
+        # reshape anchors to correct shape
+        anchors = anchors.reshape(1, len(anchors), 1, 1)
+        # print(anchors.shape)
+        # convert x0 prediction
+        box_predictions[..., 0:1] = torch.sigmoid(box_predictions[..., 0:1])
+        # convert width prediction
+        box_predictions[..., 1:2] = torch.exp(box_predictions[..., 1:2]) * anchors
+        # convert objectness score
         scores = torch.sigmoid(predictions[..., 0:1])
-        best_class = torch.argmax(predictions[..., 5:], dim=-1).unsqueeze(-1)
+        # convert one_hot class predictions to single best class
+        best_class = torch.argmax(predictions[..., 3:], dim=-1).unsqueeze(-1)
     else:
+        # simply take the score
         scores = predictions[..., 0:1]
-        best_class = predictions[..., 5:6]
+        # simply take the class prediciton
+        best_class = predictions[..., 3:4]
 
+    # step 2 calculate bbox relative to input instead of relative to cell
+    # this should be adding the cell index
     cell_indices = (
         torch.arange(S)
-        .repeat(predictions.shape[0], 3, S, 1)
+        .repeat(BATCH_SIZE, 1, 1)
         .unsqueeze(-1)
         .to(predictions.device)
     )
+    # print(cell_indices.shape)
+    # rescale to input
     x = 1 / S * (box_predictions[..., 0:1] + cell_indices)
-    y = 1 / S * (box_predictions[..., 1:2] + cell_indices.permute(0, 1, 3, 2, 4))
-    w_h = 1 / S * box_predictions[..., 2:4]
-    converted_bboxes = torch.cat((best_class, scores, x, y, w_h), dim=-1).reshape(BATCH_SIZE, num_anchors * S * S, 6)
+    w = 1 / S * box_predictions[..., 1:2]
+    # print(best_class.shape, scores.shape, x.shape, w.shape)
+    # we now `squeeze' the predictions per anchor and per cell into one dimension
+    # and get n_anchors * S predictions per batch_index
+    converted_bboxes = torch.cat((best_class, scores, x, w), dim=-1).reshape(BATCH_SIZE, num_anchors * S, 4)
     return converted_bboxes.tolist()
 
 def check_class_accuracy(model, loader, threshold):
