@@ -101,7 +101,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
                 if not anchor_taken and not has_anchor[scale_idx]:
                     # set objectness score to 0
                     targets[scale_idx][anchor_on_scale, x_cell, 0] = 1
-                    x_cell_rel = x % x_cell
+                    x_cell_rel = (x * grid_size) - x_cell
                     cell_width = width * grid_size
                     box_coordinates = torch.Tensor([x_cell_rel, cell_width])
                     # set the other values for the given object
