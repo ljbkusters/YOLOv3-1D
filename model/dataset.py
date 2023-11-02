@@ -64,6 +64,10 @@ class YOLO1DDataset(torch.utils.data.Dataset):
                                comments="#", ndmin=2).tolist()
         series = numpy.load(file=series_path)
 
+        # if data was stored as 1d data, add a dimension representing a single channel
+        if series.ndim == 1:
+            series = series[numpy.newaxis, :]
+
         if self.transform is not None:
             # self.transform:
             # takes 1D series and bboxes
