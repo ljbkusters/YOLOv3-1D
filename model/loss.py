@@ -53,8 +53,7 @@ class Yolo1DLoss(nn.Module):
         # BCE loss is calculated between
         # predicted objectness and IOU weighted ground_truth
 
-        # TODO something is still off here for 1D version...
-        anchors = torch.reshape(anchors, (1, 1, 1, 1))
+        anchors = torch.reshape(anchors, (1, len(anchors), 1, 1))
         box_predictions = torch.cat([self.sigmoid(predictions[..., 0:1]),
                                      torch.exp(predictions[..., 1:2] * anchors)],
                                     dim=-1)
@@ -80,10 +79,13 @@ class Yolo1DLoss(nn.Module):
         # class loss
         # this step trains class prediction
         class_loss = self.entropy(
-            (predictions[..., 4:][obj]),
-            (target[..., 4:][obj]
-             #.long()  # TODO why did he add .long()?
-             #         # I'm getting errors with .long()
+            (predictions[..., 3:][obj]),
+            (target[..., 3][obj].long()
+             # by casting this float to long()
+             # the cross entropy function
+             # automatically handles integer
+             # to ONE HOT conversion
+             # (this does not happen with floats!)
              )
         )
         return (
@@ -94,6 +96,7 @@ class Yolo1DLoss(nn.Module):
         )
 
 if __name__ == "__main__":
+    # simple unittests
     import model.dataset
     import model.yolov3
     import os.path
