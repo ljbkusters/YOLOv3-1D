@@ -114,8 +114,12 @@ def non_max_suppression(bboxes, iou_threshold, threshold, box_format="corners"):
 
 
 def mean_average_precision(
-    pred_boxes, true_boxes, iou_threshold=0.5, box_format="midpoint", num_classes=20
-):
+    pred_boxes,
+    true_boxes,
+    iou_threshold=0.5,
+    box_format="midpoint",
+    num_classes=20
+    ):
     """
     Video explanation of this function:
     https://youtu.be/FppOzcDvaDI
@@ -189,7 +193,7 @@ def mean_average_precision(
             best_iou = 0
 
             for idx, gt in enumerate(ground_truth_img):
-                iou = intersection_over_union(
+                iou = intersection_over_union_1d(
                     torch.tensor(detection[3:]),
                     torch.tensor(gt[3:]),
                     box_format=box_format,
