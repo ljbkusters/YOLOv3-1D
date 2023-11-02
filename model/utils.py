@@ -382,7 +382,7 @@ def check_class_accuracy(model, loader, threshold):
     for idx, (x, y) in enumerate(tqdm(loader)):
         x = x.to(config.DEVICE)
         with torch.no_grad():
-            out = model(x)
+            out = model(x.float())
 
         for i in range(3):
             y[i] = y[i].to(config.DEVICE)
@@ -390,7 +390,7 @@ def check_class_accuracy(model, loader, threshold):
             noobj = y[i][..., 0] == 0  # in paper this is Iobj_i
 
             correct_class += torch.sum(
-                torch.argmax(out[i][..., 5:][obj], dim=-1) == y[i][..., 5][obj]
+                torch.argmax(out[i][..., 3:][obj], dim=-1) == y[i][..., 3][obj]
             )
             tot_class_preds += torch.sum(obj)
 
