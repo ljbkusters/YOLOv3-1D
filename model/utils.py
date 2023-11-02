@@ -520,8 +520,7 @@ def plot_couple_examples(model, loader, thresh, iou_thresh, anchors):
         nms_boxes = non_max_suppression(
             bboxes[i], iou_threshold=iou_thresh, threshold=thresh, box_format="midpoint",
         )
-        plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes)
-
+        plot_curve(x[i].permute(1,2,0).detach().cpu(), nms_boxes)
 
 
 def seed_everything(seed=42):
@@ -533,3 +532,47 @@ def seed_everything(seed=42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+if __name__ == "__main__":
+    # simple unittests
+    # seed everything such that torch.rand is the same (also tests this function)
+    seed_everything()
+
+    # test cells_to_bboxes
+    BATCH_DIM = 64
+    ANCHORS = torch.tensor([(0.9, 0.8), (0.14, 0.10), (0.08, 0.03)])
+    CELLS = [416//32, 416//16, 416//8]
+    n_classes = 4
+    predictions = torch.rand(BATCH_DIM, len(ANCHORS[0]), CELLS[0], 3+n_classes)
+    # print(predictions.shape)
+    bboxes = cells_to_bboxes(predictions, ANCHORS[0], CELLS[0], is_preds=True)
+    # bboxes are specified (batch_dim, cells, (class, objectness, x0, width))
+    print(len(bboxes[0]))
+    assert (len(bboxes) == BATCH_DIM), ("prediction has wrong number of cells "
+                                        f"(should be {BATCH_DIM})")
+    assert (len(bboxes[0]) == len(ANCHORS[0]) * CELLS[0]), ("prediction has wrong number of cells "
+                                         f"(should be {len(ANCHORS[0]) * CELLS[0]})")
+    assert (len(bboxes[0][0]) == 4), ("prediction has wrong dimension (should be 4)")
+    for i in range(BATCH_DIM):
+        for j in range(len(ANCHORS[0]) * CELLS[0]):
+            assert (int(bboxes[i][j][0]) < n_classes), ("found an impossible class prediction")
+
+    # test plot_curve
+    import collections, numpy
+    Curve = collections.namedtuple("Curve", "x y")
+    x = numpy.linspace(0, 1, 100)
+    y = 0.5 * x
+    curve = Curve(x, y)
+    print("plotting example curve with nonsensical data and random classes")
+    print("this should show a line with 3 class predictions as colored regions")
+    plot_curve(curve, [bboxes[0][i] for i in numpy.random.randint(low=0, high=25, size=3)])
+    user_input = input("does the plot look as expected? (y/n): ")
+    while user_input not in ("y", "yes", "n", "no"):
+        print("please answer with 'y', 'n', 'yes', or 'no' ")
+        user_input = input("does the plot look as expected? (y/n): ")
+    if user_input[0] == "y":
+        print("succesfully plotted data")
+    else:
+        raise RuntimeWarning("User rejected plot")
+
+    # test
