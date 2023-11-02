@@ -49,7 +49,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.annotations)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         label_path = os.path.join(self.label_dir, self.annotations["label"][index])
         series_path = os.path.join(self.series_dir, self.annotations["series"][index])
         # TODO currently I'm following the img default setup where each img
