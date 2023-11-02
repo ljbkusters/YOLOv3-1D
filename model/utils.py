@@ -260,7 +260,7 @@ def get_evaluation_bboxes(
     threshold,
     box_format="midpoint",
     device="cuda",
-):
+    ):
     # make sure model is in eval before get bboxes
     model.eval()
     train_idx = 0
@@ -270,7 +270,7 @@ def get_evaluation_bboxes(
         x = x.to(device)
 
         with torch.no_grad():
-            predictions = model(x)
+            predictions = model(x.float())
 
         batch_size = x.shape[0]
         bboxes = [[] for _ in range(batch_size)]
