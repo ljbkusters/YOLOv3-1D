@@ -102,21 +102,22 @@ if __name__ == "__main__":
     import os.path
     yolo_loss = Yolo1DLoss()
     series_size = 416
-    num_classes = 1
+    num_classes = 2
     n_samples = 1
     anchors = [
             [(0.9)],
             [(0.14)],
             [(0.08)],
             ]
+    grids = (series_size//32, series_size//16, series_size//8)
     dataset = model.dataset.YOLO1DDataset(
-        annotations_csv=os.path.join("data", "annotations.csv"),
-        series_dir=os.path.join("data", "1d_series"),
-        label_dir=os.path.join("data", "labels"),
+        annotations_csv=os.path.join("data", "unittest_data", "annotations.csv"),
+        series_dir=os.path.join("data", "unittest_data", "1d_series"),
+        label_dir=os.path.join("data", "unittest_data", "labels"),
         series_size=series_size,
         num_classes=num_classes,
         anchors=anchors,
-        grids=(416//32, 416//16, 416//8),
+        grids=grids,
     )
     from torch.utils.data import DataLoader
     dl = DataLoader(dataset, batch_size=1)
@@ -126,13 +127,12 @@ if __name__ == "__main__":
 
     model = model.yolov3.Yolo1DV3(
         in_channels=1,
-        num_classes=1,
+        num_classes=num_classes,
         )
     scaled_anchors = (
         torch.tensor(anchors)
-        * torch.tensor((13, 26, 52)).unsqueeze(1)
+        * torch.tensor(grids).unsqueeze(1)
     )
-    print(scaled_anchors)
     prediction = model(series)
     loss = Yolo1DLoss()
     # for every scale
