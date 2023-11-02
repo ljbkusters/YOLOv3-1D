@@ -1,3 +1,9 @@
+"""utils.py
+
+Utility functions for training and evaluation
+
+TODO rewrite functions for 1D data
+"""
 from collections import Counter
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
