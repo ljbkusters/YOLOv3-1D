@@ -114,6 +114,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
             return series, tuple(targets)
 
 if __name__ == "__main__":
+    # simple unittests
     series_size = 416
     num_classes = 1
     n_samples = 1
@@ -123,18 +124,20 @@ if __name__ == "__main__":
             [(0.08)],
             ]
     dataset = YOLO1DDataset(
-        annotations_csv=os.path.join("data", "annotations.csv"),
-        series_dir=os.path.join("data", "1d_series"),
-        label_dir=os.path.join("data", "labels"),
+        annotations_csv=os.path.join("data", "unittest_data", "annotations.csv"),
+        series_dir=os.path.join("data", "unittest_data", "1d_series"),
+        label_dir=os.path.join("data", "unittest_data", "labels"),
         series_size=series_size,
         num_classes=num_classes,
         anchors=anchors,
         grids=(416//32, 416//16, 416//8),
     )
     series, targets = dataset[0]
-    assert series.shape[0] == series_size, ("loaded series does not match"
+    assert series.shape[1] == series_size, ("loaded series does not match"
                                             "expected datalength")
     assert tuple(targets[0].shape) == (n_samples, 416//32, 4)
     assert tuple(targets[1].shape) == (n_samples, 416//16, 4)
     assert tuple(targets[2].shape) == (n_samples, 416//8,  4)
+
+    print(targets[0])
     print("Successfuly loaded test datapoints!")
