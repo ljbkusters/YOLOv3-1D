@@ -225,3 +225,4 @@ if __name__ == "__main__":
     assert out[1].shape == (2, num_anchors_per_scale, data_length//16, num_classes + 3), "error in medium scale"
     assert out[2].shape == (2, num_anchors_per_scale, data_length//8, num_classes + 3), "error in large scale"
     print("Successfully built Yolo1DV3!")
+
