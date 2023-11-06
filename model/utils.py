@@ -300,14 +300,15 @@ def get_evaluation_bboxes(
 
         batch_size = x.shape[0]
         bboxes = [[] for _ in range(batch_size)]
-        for i in range(3):
-            S = predictions[i].shape[2]
-            anchor = torch.tensor([*anchors[i]]).to(device) * S
+        # TODO use len(scales)
+        for scale_idx in range(3):
+            S = predictions[scale_idx].shape[2]
+            anchor = torch.tensor([*anchors[scale_idx]]).to(device) * S
             boxes_scale_i = cells_to_bboxes(
-                predictions[i], anchor, S=S, is_preds=True
+                predictions[scale_idx], anchor, S=S, is_preds=True
             )
-            for idx, (box) in enumerate(boxes_scale_i):
-                bboxes[idx] += box
+            for batch_idx, (box) in enumerate(boxes_scale_i):
+                bboxes[batch_idx] += box
 
         # we just want one bbox for each label, not one for each scale
         true_bboxes = cells_to_bboxes(
