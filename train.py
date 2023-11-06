@@ -48,6 +48,35 @@ def train(train_loader, yolo_model, optimizer,
             loop.set_postfix(loss=mean_loss)
 
 
+def validation(data_loader, yolo_model, loss_function, scaled_anchors):
+    loop = tqdm.tqdm(data_loader, leave=True)
+    losses = []
+    # yolo_model.to(model.config.DEVICE)
+    sa0, sa1, sa2 = (
+        scaled_anchors[0].to(model.config.DEVICE),
+        scaled_anchors[1].to(model.config.DEVICE),
+        scaled_anchors[2].to(model.config.DEVICE),
+    )
+    for batch_idx, (x, y) in enumerate(loop):
+        # make sure all data uses CUDA or CPU device
+        x = x.to(model.config.DEVICE)
+        y0, y1, y2 = (
+            y[0].to(model.config.DEVICE),
+            y[1].to(model.config.DEVICE),
+            y[2].to(model.config.DEVICE),
+        )
+
+        # cast data to correct format
+        with torch.cuda.amp.autocast():
+            out = yolo_model(x.half())
+            loss = (loss_function(out[0].to(model.config.DEVICE), y0, sa0)
+                    + loss_function(out[1].to(model.config.DEVICE), y1, sa1)
+                    + loss_function(out[2].to(model.config.DEVICE), y2, sa2))
+            losses.append(loss.item())
+    mean_loss = sum(losses) / len(losses)
+    print(f"validation loss: {mean_loss}")
+
+
 def main():
     yolov3 = model.yolov3.Yolo1DV3(
         num_classes=model.config.NUM_CLASSES,
