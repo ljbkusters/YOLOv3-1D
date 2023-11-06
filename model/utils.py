@@ -469,7 +469,7 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
         param_group["lr"] = lr
 
 
-def get_loaders(train_csv_path, test_csv_path):
+def get_loaders(train_csv_path, test_csv_path, shuffle=True):
     from model.dataset import YOLO1DDataset
 
     IMAGE_SIZE = config.IMAGE_SIZE
@@ -494,7 +494,7 @@ def get_loaders(train_csv_path, test_csv_path):
         batch_size=config.BATCH_SIZE,
         num_workers=config.NUM_WORKERS,
         pin_memory=config.PIN_MEMORY,
-        shuffle=True,
+        shuffle=shuffle,
         drop_last=False,
     )
     test_loader = DataLoader(
@@ -502,7 +502,7 @@ def get_loaders(train_csv_path, test_csv_path):
         batch_size=config.BATCH_SIZE,
         num_workers=config.NUM_WORKERS,
         pin_memory=config.PIN_MEMORY,
-        shuffle=False,
+        shuffle=shuffle,
         drop_last=False,
     )
 
@@ -519,7 +519,7 @@ def get_loaders(train_csv_path, test_csv_path):
         batch_size=config.BATCH_SIZE,
         num_workers=config.NUM_WORKERS,
         pin_memory=config.PIN_MEMORY,
-        shuffle=False,
+        shuffle=shuffle,
         drop_last=False,
     )
 
