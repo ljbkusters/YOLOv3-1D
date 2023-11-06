@@ -125,8 +125,12 @@ def main():
     # )
 
     for epoch in range(model.config.NUM_EPOCHS):
+        print(f"EPOCH: {epoch}")
+        print(f"=> Training")
         train(train_loader, yolov3, optimizer, loss_fn,
               scaler, scaled_anchors)
+        print(f"=> Calculating validation loss")
+        validation(test_loader, yolov3, loss_fn, scaled_anchors)
         if model.config.SAVE_MODEL:
             model.utils.save_checkpoint(yolov3,
                                         optimizer,
