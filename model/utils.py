@@ -603,3 +603,14 @@ if __name__ == "__main__":
         raise RuntimeWarning("User rejected plot")
 
     # test
+
+
+def keyboard_interruptable(func):
+    def wrapper(*args, **kwargs):
+        try:
+            res = func(*args, **kwargs)
+            return res
+        except KeyboardInterrupt:
+            print("EARLY EXIT DUE TO KEYBOARD INTERRUPT!")
+            exit(0)
+    return wrapper
