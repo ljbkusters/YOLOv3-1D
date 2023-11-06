@@ -77,6 +77,7 @@ def validation(data_loader, yolo_model, loss_function, scaled_anchors):
     print(f"validation loss: {mean_loss}")
 
 
+@model.utils.keyboard_interruptable
 def main():
     yolov3 = model.yolov3.Yolo1DV3(
         num_classes=model.config.NUM_CLASSES,
