@@ -13,8 +13,8 @@ NUM_WORKERS = 4
 BATCH_SIZE = 32
 # TODO rename to data_size or series_size
 IMAGE_SIZE = 416
-NUM_CLASSES = 4
-LEARNING_RATE = 3e-4
+NUM_CLASSES = 3
+LEARNING_RATE = 1e-5
 WEIGHT_DECAY = 0 # 1e-4
 NUM_EPOCHS = 100
 CONF_THRESHOLD = 0.05
@@ -37,9 +37,9 @@ ANCHORS_2D = [
 # these should be determined by K-means clustering or whatever
 # in 1D all widths are self-similar though...
 ANCHORS_1D = [
-    [(0.9)],
-    [(0.14)],
-    [(0.08)],
+    [0.28, 0.38, 0.9],
+    [0.07, 0.15, 0.14],
+    [0.02, 0.04, 0.08],
 ]  # Note these have been rescaled to be between [0, 1]
 
 
