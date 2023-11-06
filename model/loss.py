@@ -138,5 +138,7 @@ if __name__ == "__main__":
     # for every scale
     with torch.cuda.amp.autocast():
         for p, t, a in zip(prediction, targets, scaled_anchors):
-            loss(p, t, a)
+            current_loss = loss(p, t, a)
+            if current_loss == numpy.nan:
+                print("loss returned nan!")
     print("succesfully calculated loss!")
