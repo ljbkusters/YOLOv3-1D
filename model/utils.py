@@ -261,6 +261,32 @@ def get_evaluation_bboxes(
     box_format="midpoint",
     device="cuda",
     ):
+    """Get prediction and ground truth bboxes
+
+    This is mainly usefull for visualization purposes
+
+    Args:
+        loader (torch.Dataloader | Iterable): A Dataloader object
+            returning (x, y)
+        model (torch.Model): PyTorch model
+        iou_threshold (float): NMS rejection threshold, overlapping
+            bboxes above the iou threshold are assumed to predict
+            the same object and the bbox with the lowest confidence
+            is removed.
+        anchors (Iterable): Iterable (array-like) of base anchors
+        threshold (float): Confidence threshold.
+        box_format (str, optional): Input format of bboxes to non-max
+            suppression.  Either "corners" or "midpoint".
+            Defaults to "midpoint".
+        device (str, optional): PyTorch device, either "cpu", a gpu
+        device or "cuda". Defaults to "cuda".
+
+    Returns:
+        all_pred_bboxes, all_true_bboxes[list]: lists of bboxes
+            (predicted and ground truth).  bbox specification:
+            [idx, class, confidence, x0, width]
+            here idx refers to the i-th evaluated input
+    """
     # make sure model is in eval before get bboxes
     model.eval()
     train_idx = 0
