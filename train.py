@@ -82,6 +82,7 @@ def main():
     yolov3 = model.yolov3.Yolo1DV3(
         num_classes=model.config.NUM_CLASSES,
         in_channels=model.config.IN_CHANNELS,
+        num_anchors_per_scale=len(model.config.ANCHORS_1D[0])
         ).to(model.config.DEVICE)
     optimizer = torch.optim.Adam(
         yolov3.parameters(),
