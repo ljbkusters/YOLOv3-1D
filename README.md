@@ -7,7 +7,10 @@ This repository can essentially be seen as a fork of `https://github.com/aladdin
 + other: `numpy`, `matplotlib`, `pandas`, `tqdm`
 
 pip install command
-`pip install torch torchvision torchaudio tqdm numpy matplotib`
+
+```
+pip install torch tqdm numpy matplotib pandas
+```
 
 ## Data format
 Data is stored in numpy arrays. Only fixed length inputs with sizes of multiples of 32 are supported. Each dataset is stored in a seperate file the `data/test_data/1d_series` directory. Labels are stored in `data/test_data/labels` directory as a csv with rows for each ground_truth bounding box/bounding domain. This follows the convention of image datasets used to train default (2D) Yolo networks. No doubt this could be improved but this repo makes minimal effort to implement this in a more efficient way.
