@@ -89,6 +89,10 @@ def main():
         lr=model.config.LEARNING_RATE,
         weight_decay=model.config.WEIGHT_DECAY
         )
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
+        optimizer,
+        gamma=model.config.LR_EXP_DECAY_FACTOR,
+        )
 
     loss_fn = model.loss.Yolo1DLoss()
     scaler = torch.cuda.amp.GradScaler()
@@ -155,6 +159,7 @@ def main():
                 num_classes=model.config.NUM_CLASSES,
             )
             print(f"MEAN AVERAGE PRECISION: {map_val}")
+        lr_scheduler.step()
 
 
 if __name__ == "__main__":
