@@ -135,14 +135,14 @@ class Yolo1DV3(nn.Module):
     """
     def __init__(self, in_channels=1, num_classes=4,
                  num_anchors_per_scale=1,
-                 config=config,
+                 config=default_config,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.num_anchors_per_scale = num_anchors_per_scale
-        self.layers = self._create_conv_layers()
         self.config = config
+        self.layers = self._create_conv_layers()
 
     def forward(self, x):
         outputs = []
@@ -176,7 +176,7 @@ class Yolo1DV3(nn.Module):
     def _create_conv_layers(self):
         layers = nn.ModuleList()
         in_channels = self.in_channels
-        for module in config:
+        for module in self.config:
             if isinstance(module, tuple):
                 out_channels, kernel_size, stride = module
                 layers.append(CNN1DBlock(
