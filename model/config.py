@@ -4,6 +4,7 @@ import torch
 import os.path
 
 # from albumentations.pytorch import ToTensorV2
+from model.yolov3 import default_config, config_tiny
 
 DATASET = os.path.join("data", "test_data")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -11,6 +12,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 IN_CHANNELS = 1
 NUM_WORKERS = 4
 BATCH_SIZE = 32
+BUILD_CONFIG = default_config
 # TODO rename to data_size or series_size
 IMAGE_SIZE = 416
 NUM_CLASSES = 3

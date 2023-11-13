@@ -8,21 +8,18 @@ import torch.nn as nn
 # blocks are repeated implementations of the same layers
 # string: scale prediction / upsampling
 
-config = [
+default_config = [
     (32, 3, 1),
     (64, 3, 2),
     ["R", 1],
     (128, 3, 2),
     ["R", 2],
     (256, 3, 2),
-    ["R", 8],
+    ["RS", 8],
     (512, 3, 2),
-    ["B", 8],
+    ["RS", 8],
     (1024, 3, 2),
     ["R", 4],  # To this point is Darknet-53
-    # up to this point the network seems fine
-    # from here the padding is broken
-    # this happens at every kernel = 1 layer (why?)
     (512, 1, 1),
     (1024, 3, 1),
     "S",
@@ -37,6 +34,38 @@ config = [
     (256, 3, 1),
     "S",
 ]
+
+config_tiny = [
+    (32, 3, 1),
+    (64, 3, 2),
+    ["R", 1],
+    (128, 3, 2),
+    ["R", 2],
+    (256, 3, 2),
+    ["RS", 2],
+    (512, 3, 2),
+    ["RS", 2],
+    (1024, 3, 2),
+    ["R", 1],
+    (512, 1, 1),
+    (1024, 3, 1),
+    "S",
+    (256, 1, 1),
+    "U",
+    (256, 1, 1),
+    (512, 3, 1),
+    "S",
+    (128, 1, 1),
+    "U",
+    (128, 1, 1),
+    (256, 3, 1),
+    "S",
+]
+
+
+class YoloConfigError(TypeError):
+    pass
+
 
 class CNN1DBlock(nn.Module):
     """A basic CNN block
@@ -135,48 +164,53 @@ class Yolo1DV3(nn.Module):
     """
     def __init__(self, in_channels=1, num_classes=4,
                  num_anchors_per_scale=1,
-                 config=config,
+                 config=default_config,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.num_anchors_per_scale = num_anchors_per_scale
-        self.layers = self._create_conv_layers()
         self.config = config
+        self.layers, self.route_connection_locations = self._create_conv_layers()
+
 
     def forward(self, x):
+        """forward step through network
+
+        Args:
+            x (torch.Tensor): network input
+
+        Returns:
+            list[torch.Tensor]: list of scale predictions
+        """
         outputs = []
         route_connections = []
 
-        for i, layer in enumerate(self.layers):
-            input_shape = x.shape
+        for layer_idx, layer in enumerate(self.layers):
             if isinstance(layer, ScalePrediction):
-                # print("SCALE PREDICTION")
                 # make a predition and continue to main branch
                 # any code below `continue` will not run!
                 outputs.append(layer(x))
                 continue
+
             # step one layer
             x = layer(x)
 
-            if isinstance(layer, ResidualBlock) and layer.num_repeats == 8:
-                # print("RESIDUAL: 8")
-                # save skip connections
+            # handle route connections
+            if layer_idx in self.route_connection_locations:
+                # create route connection
                 route_connections.append(x)
-
             elif isinstance(layer, nn.Upsample):
                 # concatenate with last route connection
                 x = torch.cat([x, route_connections[-1]], dim=1)
                 route_connections.pop()
-            output_shape = x.shape
-            # print(layer)
-            # print(f"layer {i}: {input_shape} ->  {output_shape}")
         return outputs
 
     def _create_conv_layers(self):
         layers = nn.ModuleList()
+        route_connection_locations = []
         in_channels = self.in_channels
-        for module in config:
+        for module_idx, module in enumerate(self.config):
             if isinstance(module, tuple):
                 out_channels, kernel_size, stride = module
                 layers.append(CNN1DBlock(
@@ -189,7 +223,15 @@ class Yolo1DV3(nn.Module):
                 in_channels = out_channels
             elif isinstance(module, list):
                 block_type, num_repeats = module
-                layers.append(ResidualBlock(in_channels, num_repeats=num_repeats))
+                if not isinstance(block_type, str):
+                    raise YoloConfigError("Repeatable blocks should be lists with a string in the"
+                                          "0-th index and an integer in 1-st index"
+                                          "(list[str, int])")
+                if "R" in block_type:
+                    layers.append(ResidualBlock(in_channels, num_repeats=num_repeats))
+                if "S" in block_type:
+                    # add a skip connection
+                    route_connection_locations.append(module_idx)
             elif isinstance(module, str):
                 if module == "S":
                     # detection layer
@@ -207,22 +249,39 @@ class Yolo1DV3(nn.Module):
                     # upsample layer
                     layers.append(nn.Upsample(scale_factor=2))
                     in_channels = in_channels * 3
-        return layers
+        return layers, route_connection_locations
+
 
 if __name__ == "__main__":
+    def _test_model(model, x, batch_size, num_anchors_per_scale, data_length, num_classes):
+        output = model(x)
+        assert output[0].shape == (batch_size, num_anchors_per_scale,
+                                data_length//32, num_classes + 3), "error in small scale"
+        assert output[1].shape == (batch_size, num_anchors_per_scale,
+                                data_length//16, num_classes + 3), "error in medium scale"
+        assert output[2].shape == (batch_size, num_anchors_per_scale,
+                                data_length//8, num_classes + 3), "error in large scale"
+
     # quick test
     num_classes = 20
     data_length = 416
-    num_anchors_per_scale = 1
-    model = Yolo1DV3(num_classes=num_classes,
-                     in_channels=1,
-                     num_anchors_per_scale=1)
-    # batchsize, channels, data_length
-    x = torch.randn((2, 1, data_length))
-    print(x.dtype)
-    out = model(x)
-    assert out[0].shape == (2, num_anchors_per_scale, data_length//32, num_classes + 3), "error in small scale"
-    assert out[1].shape == (2, num_anchors_per_scale, data_length//16, num_classes + 3), "error in medium scale"
-    assert out[2].shape == (2, num_anchors_per_scale, data_length//8, num_classes + 3), "error in large scale"
-    print("Successfully built Yolo1DV3!")
+    batch_size = 2
+    num_input_channels = 2
+    num_anchors_per_scale = 3
+    x = torch.randn((batch_size, num_input_channels, data_length))
+
+    # DEFAULT config
+    model_d = Yolo1DV3(num_classes=num_classes,
+                     in_channels=num_input_channels,
+                     num_anchors_per_scale=num_anchors_per_scale,
+                     config=default_config)
+    # TINY config
+    model_t = Yolo1DV3(num_classes=num_classes,
+                     in_channels=num_input_channels,
+                     num_anchors_per_scale=num_anchors_per_scale,
+                     )
+    _test_model(model_d, x, batch_size, num_anchors_per_scale, data_length, num_classes)
+    print("Successfully built default Yolo1DV3!")
+    _test_model(model_t, x, batch_size, num_anchors_per_scale, data_length, num_classes)
+    print("Successfully built tiny Yolo1DV3!")
 
