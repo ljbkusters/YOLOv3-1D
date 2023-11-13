@@ -35,6 +35,11 @@ default_config = [
     "S",
 ]
 
+
+class YoloConfigError(TypeError):
+    pass
+
+
 class CNN1DBlock(nn.Module):
     """A basic CNN block
 
