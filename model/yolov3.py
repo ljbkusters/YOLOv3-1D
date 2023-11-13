@@ -20,9 +20,6 @@ default_config = [
     ["R", 8],
     (1024, 3, 2),
     ["R", 4],  # To this point is Darknet-53
-    # up to this point the network seems fine
-    # from here the padding is broken
-    # this happens at every kernel = 1 layer (why?)
     (512, 1, 1),
     (1024, 3, 1),
     "S",
