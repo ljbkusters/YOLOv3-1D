@@ -144,41 +144,46 @@ class Yolo1DV3(nn.Module):
         self.num_classes = num_classes
         self.num_anchors_per_scale = num_anchors_per_scale
         self.config = config
-        self.layers = self._create_conv_layers()
+        self.layers, self.route_connection_locations = self._create_conv_layers()
+
 
     def forward(self, x):
+        """forward step through network
+
+        Args:
+            x (torch.Tensor): network input
+
+        Returns:
+            list[torch.Tensor]: list of scale predictions
+        """
         outputs = []
         route_connections = []
 
-        for i, layer in enumerate(self.layers):
-            input_shape = x.shape
+        for layer_idx, layer in enumerate(self.layers):
             if isinstance(layer, ScalePrediction):
-                # print("SCALE PREDICTION")
                 # make a predition and continue to main branch
                 # any code below `continue` will not run!
                 outputs.append(layer(x))
                 continue
+
             # step one layer
             x = layer(x)
 
-            if isinstance(layer, ResidualBlock) and layer.num_repeats == 8:
-                # print("RESIDUAL: 8")
-                # save skip connections
+            # handle route connections
+            if layer_idx in self.route_connection_locations:
+                # create route connection
                 route_connections.append(x)
-
             elif isinstance(layer, nn.Upsample):
                 # concatenate with last route connection
                 x = torch.cat([x, route_connections[-1]], dim=1)
                 route_connections.pop()
-            output_shape = x.shape
-            # print(layer)
-            # print(f"layer {i}: {input_shape} ->  {output_shape}")
         return outputs
 
     def _create_conv_layers(self):
         layers = nn.ModuleList()
+        route_connection_locations = []
         in_channels = self.in_channels
-        for module in self.config:
+        for module_idx, module in enumerate(self.config):
             if isinstance(module, tuple):
                 out_channels, kernel_size, stride = module
                 layers.append(CNN1DBlock(
@@ -191,7 +196,15 @@ class Yolo1DV3(nn.Module):
                 in_channels = out_channels
             elif isinstance(module, list):
                 block_type, num_repeats = module
-                layers.append(ResidualBlock(in_channels, num_repeats=num_repeats))
+                if not isinstance(block_type, str):
+                    raise YoloConfigError("Repeatable blocks should be lists with a string in the"
+                                          "0-th index and an integer in 1-st index"
+                                          "(list[str, int])")
+                if "R" in block_type:
+                    layers.append(ResidualBlock(in_channels, num_repeats=num_repeats))
+                if "S" in block_type:
+                    # add a skip connection
+                    route_connection_locations.append(module_idx)
             elif isinstance(module, str):
                 if module == "S":
                     # detection layer
@@ -209,7 +222,7 @@ class Yolo1DV3(nn.Module):
                     # upsample layer
                     layers.append(nn.Upsample(scale_factor=2))
                     in_channels = in_channels * 3
-        return layers
+        return layers, route_connection_locations
 
 if __name__ == "__main__":
     # quick test
