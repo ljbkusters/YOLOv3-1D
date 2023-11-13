@@ -35,6 +35,33 @@ default_config = [
     "S",
 ]
 
+config_tiny = [
+    (32, 3, 1),
+    (64, 3, 2),
+    ["R", 1],
+    (128, 3, 2),
+    ["R", 2],
+    (256, 3, 2),
+    ["RS", 2],
+    (512, 3, 2),
+    ["RS", 2],
+    (1024, 3, 2),
+    ["R", 1],
+    (512, 1, 1),
+    (1024, 3, 1),
+    "S",
+    (256, 1, 1),
+    "U",
+    (256, 1, 1),
+    (512, 3, 1),
+    "S",
+    (128, 1, 1),
+    "U",
+    (128, 1, 1),
+    (256, 3, 1),
+    "S",
+]
+
 
 class YoloConfigError(TypeError):
     pass
@@ -224,20 +251,37 @@ class Yolo1DV3(nn.Module):
                     in_channels = in_channels * 3
         return layers, route_connection_locations
 
+
 if __name__ == "__main__":
+    def _test_model(model, x, batch_size, num_anchors_per_scale, data_length, num_classes):
+        output = model(x)
+        assert output[0].shape == (batch_size, num_anchors_per_scale,
+                                data_length//32, num_classes + 3), "error in small scale"
+        assert output[1].shape == (batch_size, num_anchors_per_scale,
+                                data_length//16, num_classes + 3), "error in medium scale"
+        assert output[2].shape == (batch_size, num_anchors_per_scale,
+                                data_length//8, num_classes + 3), "error in large scale"
+
     # quick test
     num_classes = 20
     data_length = 416
-    num_anchors_per_scale = 1
-    model = Yolo1DV3(num_classes=num_classes,
-                     in_channels=1,
-                     num_anchors_per_scale=1)
-    # batchsize, channels, data_length
-    x = torch.randn((2, 1, data_length))
-    print(x.dtype)
-    out = model(x)
-    assert out[0].shape == (2, num_anchors_per_scale, data_length//32, num_classes + 3), "error in small scale"
-    assert out[1].shape == (2, num_anchors_per_scale, data_length//16, num_classes + 3), "error in medium scale"
-    assert out[2].shape == (2, num_anchors_per_scale, data_length//8, num_classes + 3), "error in large scale"
-    print("Successfully built Yolo1DV3!")
+    batch_size = 2
+    num_input_channels = 2
+    num_anchors_per_scale = 3
+    x = torch.randn((batch_size, num_input_channels, data_length))
+
+    # DEFAULT config
+    model_d = Yolo1DV3(num_classes=num_classes,
+                     in_channels=num_input_channels,
+                     num_anchors_per_scale=num_anchors_per_scale,
+                     config=default_config)
+    # TINY config
+    model_t = Yolo1DV3(num_classes=num_classes,
+                     in_channels=num_input_channels,
+                     num_anchors_per_scale=num_anchors_per_scale,
+                     )
+    _test_model(model_d, x, batch_size, num_anchors_per_scale, data_length, num_classes)
+    print("Successfully built default Yolo1DV3!")
+    _test_model(model_t, x, batch_size, num_anchors_per_scale, data_length, num_classes)
+    print("Successfully built tiny Yolo1DV3!")
 
