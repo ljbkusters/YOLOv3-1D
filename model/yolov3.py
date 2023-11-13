@@ -8,7 +8,7 @@ import torch.nn as nn
 # blocks are repeated implementations of the same layers
 # string: scale prediction / upsampling
 
-config = [
+default_config = [
     (32, 3, 1),
     (64, 3, 2),
     ["R", 1],
@@ -17,7 +17,7 @@ config = [
     (256, 3, 2),
     ["R", 8],
     (512, 3, 2),
-    ["B", 8],
+    ["R", 8],
     (1024, 3, 2),
     ["R", 4],  # To this point is Darknet-53
     # up to this point the network seems fine
