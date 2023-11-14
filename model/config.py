@@ -3,7 +3,7 @@
 import torch
 import os.path
 
-# from albumentations.pytorch import ToTensorV2
+from model.augmentations import transforms
 from model.yolov3 import default_config, config_tiny
 
 DATASET = os.path.join("data", "test_data")
@@ -47,6 +47,24 @@ ANCHORS_1D = [
 
 
 scale = 1.1
+train_transforms = transforms.ComposedTransform(
+    transforms=[
+        transforms.Translate(x_shift=transforms.UniformDistribution(-0.1, 0.1),
+                             extrapolation_method="constant",
+                             p=0.1
+                             ),
+        transforms.PolynomialBaseline(
+            intercept=transforms.NormalDistribution(0, 0.1),
+            linear=transforms.NormalDistribution(0, 0.01),
+            quadratic=transforms.NormalDistribution(0, 0.01),
+            x0=transforms.NormalDistribution(0.5, 0.05),
+            p=0.5,
+            ),
+        transforms.Flip(
+            p=0.1,
+            ),
+        ],
+    p=0.5)
 # train_transforms = A.Compose(
 #     [
 #         A.LongestMaxSize(max_size=int(IMAGE_SIZE * scale)),
