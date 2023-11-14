@@ -85,7 +85,7 @@ class UniformDistribution(BaseDistribution):
 
 class BaseTransform(abc.ABC):
 
-    def __init__(self, p, deterministic=False):
+    def __init__(self, p=1.0, deterministic=False):
         self._p = p
         self._deterministic = deterministic
         self._cache = dict()
