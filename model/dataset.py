@@ -111,7 +111,8 @@ class YOLO1DDataset(torch.utils.data.Dataset):
                 elif not anchor_taken and iou_anchors[idx] > self.ignore_iou_thresh:
                     # ignore prediction by setting objectness to -1
                     targets[scale_idx][anchor_on_scale, x_cell, 0] = -1
-            return series, tuple(targets)
+        return series, tuple(targets)
+
 
 if __name__ == "__main__":
     # simple unittests
