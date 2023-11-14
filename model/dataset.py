@@ -84,6 +84,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
         targets = [torch.zeros((self.num_anchors_per_scale, grid_size, 4))
                    for grid_size in self.grids]
 
+        # loop over bboxes and assign cells with objects
         for bbox in bboxes:
             iou_anchors = iou_width(torch.tensor(bbox[1:2]),  # width
                                     self.anchors)
