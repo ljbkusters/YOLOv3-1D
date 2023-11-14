@@ -123,6 +123,36 @@ class ComposedTransform(BaseTransform):
             })
         return Augmentation(series, bboxes)
 
+class OneOf(BaseTransform):
+    """A meta transform which selects one of a list of transforms
+
+    This can be used to exclusively chose on of various transforms.
+    """
+    def __init__(self,
+                 transforms: list[BaseTransform],
+                 relative_p: list[float],
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert (isinstance(t, BaseTransform) for t in transforms)
+        self.transforms = transforms
+        if relative_p is not None:
+            assert sum(relative_p) == 1, ("Sum of relative probabilities"
+                                          " must be equal to 1")
+        self.relative_p = relative_p
+
+    def transform(self, series, bboxes):
+        transform = numpy.random.choice(
+            self.transforms, size=1, replace=False, p=self.relative_p)[0]
+
+        augmentation = transform(series, bboxes)
+        series = augmentation.get("series", None)
+        bboxes = augmentation.get("bboxes", None)
+        self._cache.update({
+            f"{i}_{type(transform).__name__}": {
+                "cache": transform._cache,
+                "augmentation": augmentation},
+        })
+        return Augmentation(series, bboxes)
 
 class PolynomialBaseline(BaseTransform):
     """Add a polynomial "baseline" to an existing curve
