@@ -395,3 +395,32 @@ if __name__ == "__main__":
             ax.legend()
         plt.show()
         plt.show()
+
+        # test OneOf
+        oneof = OneOf(transforms=[
+            Flip(p=1),
+            Translate(p=1, x_shift=UniformDistribution(0, 0.05),
+                      extrapolation_method="constant"),
+        ], relative_p=[0.5, 0.5])
+        augmentation = oneof.transform(series, bboxes)
+        transform_key = list(oneof._cache.keys())[0]
+        assert ("Flip" in transform_key
+                or "Translate" in transform_key)
+
+        oneof = OneOf(transforms=[
+            Flip(p=1),
+            Translate(p=1, x_shift=UniformDistribution(0, 0.05),
+                      extrapolation_method="constant"),
+        ], relative_p=[1, 0])
+        augmentation = oneof.transform(series, bboxes)
+        transform_key = list(oneof._cache.keys())[0]
+        assert ("Flip" in transform_key)
+
+        oneof = OneOf(transforms=[
+            Flip(p=1),
+            Translate(p=1, x_shift=UniformDistribution(0, 0.05),
+                      extrapolation_method="constant"),
+        ], relative_p=[0, 1])
+        augmentation = oneof.transform(series, bboxes)
+        transform_key = list(oneof._cache.keys())[0]
+        assert ("Translate" in transform_key)
