@@ -475,7 +475,7 @@ def get_loaders(train_csv_path, test_csv_path, shuffle=True):
     IMAGE_SIZE = config.IMAGE_SIZE
     train_dataset = YOLO1DDataset(
         train_csv_path,
-        #transform=config.train_transforms,
+        transform=config.train_transforms,
         grids=[IMAGE_SIZE // 32, IMAGE_SIZE // 16, IMAGE_SIZE // 8],
         series_dir=config.SERIES_DIR,
         label_dir=config.LABEL_DIR,
