@@ -50,8 +50,8 @@ class YOLO1DDataset(torch.utils.data.Dataset):
         return len(self.annotations)
 
     def __getitem__(self, index: int):
-        label_path = os.path.join(self.label_dir, self.annotations["label"][index])
-        series_path = os.path.join(self.series_dir, self.annotations["series"][index])
+        label_path = os.path.join(self.label_dir, self.annotations.iloc[index, 1])
+        series_path = os.path.join(self.series_dir, self.annotations.iloc[index, 0])
         # TODO currently I'm following the img default setup where each img
         # is stored in a seperate file
         # A set of 1D data could, however, be stored in one file
