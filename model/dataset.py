@@ -72,9 +72,9 @@ class YOLO1DDataset(torch.utils.data.Dataset):
             # self.transform:
             # takes 1D series and bboxes
             # outputs transformed
-            augmetnations = self.transorm(series=series, bboxes=bboxes)
-            series = augmetnations["series"]
-            bboxes = augmetnations["bboxes"]
+            augmentations = self.transform(series=series, bboxes=bboxes)
+            series = augmentations["series"].copy()
+            bboxes = augmentations["bboxes"]
 
         # Target specification
         # target has size
