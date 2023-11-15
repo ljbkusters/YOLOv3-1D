@@ -12,6 +12,12 @@ import model.utils
 
 import argparse
 
+CONFIG_SELECTIONS = {
+    "model.config": model.config.BUILD_CONFIG,
+    "default": model.yolov3.default_config,
+    "tiny": model.yolov3.config_tiny,
+}
+
 
 def make_predictions(yolo_model, data_loader):
 
@@ -38,6 +44,7 @@ def make_predictions(yolo_model, data_loader):
             bbox_predictions.append(bboxes)
     return bbox_predictions
 
+
 def visualize_data(loader):
     import matplotlib.pyplot as plt
     for batch_idx, (x_batch, (y0b, y1b, y2b)) in enumerate(loader):
@@ -46,30 +53,46 @@ def visualize_data(loader):
             x_linspace = numpy.linspace(0, 1, len(X))
             plt.plot(x_linspace, X)
             # y0 13 cells
-            for i in range(13):
-                objectness, cell_mean, cell_width, class_lbl = y0[0, i].numpy()
-                if objectness > 0.5:
-                    print("cell mu, cell width")
-                    print(cell_mean, cell_width)
-                    mu = (i+cell_mean)/13
-                    w = cell_width/13
-                    x0 = mu - w/2
-                    x1 = mu + w/2
-                    print("curve mu, curve width")
-                    print(mu, w)
-                    print("x0, x1")
-                    print(x0, x1)
-                    plt.axvspan(x0, x1, color="green", alpha=0.5)
-                    plt.text(mu, 0, class_lbl)
+            for j in range(y0.shape[0]):
+                for i in range(13):
+                    objectness, cell_mean, cell_width, class_lbl = y0[j, i].numpy()
+                    if objectness > 0.5:
+                        print("cell mu, cell width")
+                        print(cell_mean, cell_width)
+                        mu = (i+cell_mean)/13
+                        w = cell_width/13
+                        x0 = mu - w/2
+                        x1 = mu + w/2
+                        print("curve mu, curve width")
+                        print(mu, w)
+                        print("x0, x1")
+                        print(x0, x1)
+                        plt.axvspan(x0, x1, color="green", alpha=0.5)
+                        plt.text(mu, 0, class_lbl)
             plt.show()
             # y1 26 cells
             # y2 52 cells
 
 def main(args):
+
+    train_loader, test_loader, train_eval_loader = \
+        model.utils.get_loaders(
+            train_csv_path=os.path.join(
+                model.config.DATASET, "train_annotations.csv"),
+            test_csv_path=os.path.join(
+                model.config.DATASET, "test_annotations.csv"),
+            shuffle=False,
+            return_bboxes=True,
+        )
+    if args.visualize_train_data:
+        visualize_data(train_loader)
+        exit()
+
     yolov3 = model.yolov3.Yolo1DV3(
         num_classes=model.config.NUM_CLASSES,
         in_channels=model.config.IN_CHANNELS,
         num_anchors_per_scale=args.aps,
+        config=CONFIG_SELECTIONS.get(args.config)
         ).to(model.config.DEVICE)
     optimizer = torch.optim.Adam(
         yolov3.parameters(),
@@ -79,15 +102,6 @@ def main(args):
 
     loss_fn = model.loss.Yolo1DLoss()
     scaler = torch.cuda.amp.GradScaler()
-
-    train_loader, test_loader, train_eval_loader = \
-        model.utils.get_loaders(
-            train_csv_path=os.path.join(
-                model.config.DATASET, "train_annotations.csv"),
-            test_csv_path=os.path.join(
-                model.config.DATASET, "test_annotations.csv"),
-            shuffle=False,
-        )
 
     model.utils.load_checkpoint(
         args.checkpoint_file,
@@ -106,9 +120,6 @@ def main(args):
     )
     print(len(pred_boxes))
     print(len(true_boxes))
-    print(len(true_boxes[0]))
-    print(true_boxes[0])
-    print(true_boxes[1])
 
     # load curves
     curves = []
@@ -126,8 +137,10 @@ def main(args):
     x_linspace = numpy.linspace(0, 1, 416)
     for i, curve in enumerate(curves):
         # get all true bboxes
-        pred_labels = []
-        plt.figure(figsize=(6, 6))
+        gt_labels = ["Ground Truth"]
+        pred_labels = ["Predictions"]
+        plt.figure(figsize=(10, 8))
+        j, k = 1, 1
         for bbox in true_boxes:
             if bbox[0] == i:
                 idx, clslbl, conf, xm, w = bbox
@@ -137,14 +150,8 @@ def main(args):
                 plt.axvspan(x0, x1, color='green', alpha=0.2)
                 plt.axvline(x0, color='green')
                 plt.axvline(x1, color='green')
-                lbl = f"true_class: {str_lbl},\n $\mu:$ {xm:.3f}, $w$: {w:.3f}"
-                plt.text(0.1, 0.9, lbl, color="green",
-                         transform=plt.gca().transAxes,
-                         bbox=dict(facecolor='white',
-                                   alpha=0.7,
-                                   edgecolor='green',
-                                   boxstyle='round')
-                         )
+                gt_labels.append(f"• Label {j}:\n  class: {str_lbl}\n  $\mu$: {xm:.3f}, $w$: {w:.3f}")
+                j += 1
         # get all predicted bboxes
         for bbox in pred_boxes:
             if bbox[0] == i:
@@ -153,11 +160,22 @@ def main(args):
                 x0 = xm - w/2
                 x1 = xm + w/2
                 plt.axvspan(x0, x1, color='red', alpha=0.5)
-                lbl = (f"class: {str_lbl}\nconf: {conf:.3f}\n"
-                       f"$\mu$ {xm:.3f}, $w$: {w:.3f}")
+                lbl = (f"• Prediction {k}:\n  class: {str_lbl}\n  conf: {conf:.3f}"
+                       f"  $\mu$: {xm:.3f}, $w$: {w:.3f}\n")
                 pred_labels.append(lbl)
-        plt.text(0.1, 0.7, "\n".join(pred_labels), color="red",
+                k += 1
+
+        plt.text(0.1, 0.9, "\n".join(gt_labels), color="green",
+                    transform=plt.gca().transAxes,
+                    va="top", ha="left",
+                    bbox=dict(facecolor='white',
+                            alpha=0.7,
+                            edgecolor='green',
+                            boxstyle='round')
+                    )
+        plt.text(0.7, 0.9, "\n\n".join(pred_labels), color="red",
                  transform=plt.gca().transAxes,
+                 va="top", ha="left",
                  bbox=dict(facecolor='white',
                            alpha=0.7,
                            edgecolor='red',
@@ -173,6 +191,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint_file", help="checkpoint loading file")
     parser.add_argument("--aps", help="anchors per scale", type=int)
+    parser.add_argument("--visualize_train_data", action="store_true")
+    parser.add_argument("--config", type=str,
+                        help="which yolo model to build. This is intricately linked with"
+                             "which checkpoint file you load.",
+                        choices=CONFIG_SELECTIONS.keys(),
+                        )
     args = parser.parse_args()
 
     # main

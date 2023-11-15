@@ -30,6 +30,7 @@ SAVE_MODEL = True
 CHECKPOINT_FILE = "checkpoint.pth.tar"
 SERIES_DIR = os.path.join(DATASET, "1d_series")
 LABEL_DIR = os.path.join(DATASET, "labels")
+TEST_INTERVAL = 1
 
 ANCHORS_2D = [
     [(0.28, 0.22), (0.38, 0.48), (0.9, 0.78)],
@@ -37,14 +38,20 @@ ANCHORS_2D = [
     [(0.02, 0.03), (0.04, 0.07), (0.08, 0.06)],
 ]  # Note these have been rescaled to be between [0, 1]
 
-# these should be determined by K-means clustering or whatever
-# in 1D all widths are self-similar though...
+# these anchors have been calculated on the test_data using kmeans.py
+# with 6 clusters
 ANCHORS_1D = [
     [0.28, 0.38, 0.9],
     [0.07, 0.15, 0.14],
     [0.02, 0.04, 0.08],
 ]  # Note these have been rescaled to be between [0, 1]
 
+# Kmeans determined optimal anchors for our dataset
+ANCHORS_1D_KMEANS = [
+    [0.4822033, 0.57972172],
+    [0.3030703, 0.37909713],
+    [0.19150963, 0.24740407],
+]
 
 scale = 1.1
 train_transforms = transforms.ComposedTransform(

@@ -12,7 +12,7 @@ import model.yolov3
 def train(train_loader, yolo_model, optimizer,
           loss_function, scaler,
           scaled_anchors):
-    loop = tqdm.tqdm(train_loader, leave=True)
+    loop = tqdm.tqdm(train_loader, leave=True, position=1)
     losses = []
     # yolo_model.to(model.config.DEVICE)
     sa0, sa1, sa2 = (
@@ -49,7 +49,7 @@ def train(train_loader, yolo_model, optimizer,
 
 
 def validation(data_loader, yolo_model, loss_function, scaled_anchors):
-    loop = tqdm.tqdm(data_loader, leave=True)
+    loop = tqdm.tqdm(data_loader, leave=True, position=1)
     losses = []
     # yolo_model.to(model.config.DEVICE)
     sa0, sa1, sa2 = (
@@ -129,8 +129,7 @@ def main():
     #     * torch.tensor(grids).unsqueeze(1)
     # )
 
-    for epoch in range(model.config.NUM_EPOCHS):
-        print(f"EPOCH: {epoch}")
+    for epoch in tqdm.tqdm(range(model.config.NUM_EPOCHS), position=0, leave=True, unit="epoch"):
         print(f"=> Training")
         train(train_loader, yolov3, optimizer, loss_fn,
               scaler, scaled_anchors)
@@ -140,7 +139,7 @@ def main():
             model.utils.save_checkpoint(yolov3,
                                         optimizer,
                                         filename=model.config.CHECKPOINT_FILE)
-        if (epoch+1) % 10 == 0:
+        if (epoch+1) % model.config.TEST_INTERVAL == 0:
             print("On Test loader:")
             model.utils.check_class_accuracy(
                 yolov3,
