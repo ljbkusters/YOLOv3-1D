@@ -34,8 +34,8 @@ class Yolo1DLoss(nn.Module):
         # predictions[..., 3:] : classes (one hot)
 
         # get objectness ground truth
-        obj = target[..., 0] == 1
-        noobj = target[..., 0] == 0
+        obj_mask = target[..., 0] == 1
+        noobj_mask = target[..., 0] == 0
 
         # ==============
         # No object loss
@@ -44,8 +44,8 @@ class Yolo1DLoss(nn.Module):
         # BCE loss between predicted objectness and
         # true objectness is calculated
         no_obj_loss = self.bce(
-            predictions[..., 0:1][noobj],
-            target[..., 0:1][noobj]
+            predictions[..., 0:1][noobj_mask],
+            target[..., 0:1][noobj_mask]
         )
 
         # Obj loss
@@ -55,14 +55,14 @@ class Yolo1DLoss(nn.Module):
 
         anchors = torch.reshape(anchors, (1, len(anchors), 1, 1))
         box_predictions = torch.cat([self.sigmoid(predictions[..., 1:2]),
-                                     torch.exp(predictions[..., 2:3] * anchors)],
+                                     torch.exp(predictions[..., 2:3]*anchors)],
                                     dim=-1)
         # no gradients over ious
-        ious = (intersection_over_union_1d(box_predictions[obj],
-                                           target[..., 1:3][obj])
-                .detach())
-        object_loss = self.bce(predictions[..., 0:1][obj],
-                               ious*target[..., 0:1][obj]
+        ious = intersection_over_union_1d(box_predictions[obj_mask],
+                                          target[..., 1:3][obj_mask]
+                                          ).detach()
+        object_loss = self.mse(self.sigmoid(predictions[..., 0:1][obj_mask]),
+                               ious*target[..., 0:1][obj_mask]
                                )
 
         # box coordinate loss
@@ -73,14 +73,14 @@ class Yolo1DLoss(nn.Module):
         target[..., 2:3] = torch.log(
             target[..., 2:3] / anchors + 1e-6
         ) # width
-        box_loss = self.mse(predictions[..., 1:3][obj],
-                            target[..., 1:3][obj])
+        box_loss = self.mse(predictions[..., 1:3][obj_mask],
+                            target[..., 1:3][obj_mask])
 
         # class loss
         # this step trains class prediction
         class_loss = self.entropy(
-            (predictions[..., 3:][obj]),
-            (target[..., 3][obj].long()
+            (predictions[..., 3:][obj_mask]),
+            (target[..., 3][obj_mask].long()
              # by casting this float to long()
              # the cross entropy function
              # automatically handles integer
@@ -94,6 +94,7 @@ class Yolo1DLoss(nn.Module):
             + self.lambda_noobj * no_obj_loss
             + self.lambda_obj * object_loss
         )
+
 
 if __name__ == "__main__":
     # simple unittests
