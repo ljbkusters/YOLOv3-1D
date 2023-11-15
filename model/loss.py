@@ -54,8 +54,8 @@ class Yolo1DLoss(nn.Module):
         # predicted objectness and IOU weighted ground_truth
 
         anchors = torch.reshape(anchors, (1, len(anchors), 1, 1))
-        box_predictions = torch.cat([self.sigmoid(predictions[..., 0:1]),
-                                     torch.exp(predictions[..., 1:2] * anchors)],
+        box_predictions = torch.cat([self.sigmoid(predictions[..., 1:2]),
+                                     torch.exp(predictions[..., 2:3] * anchors)],
                                     dim=-1)
         # no gradients over ious
         ious = (intersection_over_union_1d(box_predictions[obj],
