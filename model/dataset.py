@@ -14,6 +14,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
                  transform=None,
                  ignore_io_thresh = 0.5,
                  one_anchor_per_scale=False,
+                 return_bboxes=False,
                  *args, **kwargs
                  ):
         """YOLO Dataset class
@@ -47,6 +48,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
         self.num_classes = num_classes
         self.ignore_iou_thresh = ignore_io_thresh
         self._one_anchor_per_scale = one_anchor_per_scale
+        self.return_bboxes = return_bboxes
 
     def __len__(self):
         return len(self.annotations)
@@ -77,6 +79,9 @@ class YOLO1DDataset(torch.utils.data.Dataset):
             augmentations = self.transform(series=series, bboxes=bboxes)
             series = augmentations["series"].copy()
             bboxes = augmentations["bboxes"]
+
+        if self.return_bboxes:
+            return series, bboxes
 
         # Target specification
         # define a target vector [obj, x, w, class]
