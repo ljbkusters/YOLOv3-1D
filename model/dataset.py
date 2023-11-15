@@ -13,6 +13,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
                  num_classes=20,
                  transform=None,
                  ignore_io_thresh = 0.5,
+                 one_anchor_per_scale=False,
                  *args, **kwargs
                  ):
         """YOLO Dataset class
@@ -45,6 +46,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
         self.num_anchors_per_scale = self.num_anchors // 3
         self.num_classes = num_classes
         self.ignore_iou_thresh = ignore_io_thresh
+        self._one_anchor_per_scale = one_anchor_per_scale
 
     def __len__(self):
         return len(self.annotations)
@@ -77,42 +79,72 @@ class YOLO1DDataset(torch.utils.data.Dataset):
             bboxes = augmentations["bboxes"]
 
         # Target specification
-        # target has size
-        # (N scale predictions (3 by default),
-        #  number of grid spots,
-        #  (objectness_score (float), x_anchor (float), x_width (float), class (int)))
+        # define a target vector [obj, x, w, class]
+        # for each grid_cell
+        # which has to be defined for each anchor
+        # which has to be difined for each prediction scale (each grid)
         targets = [torch.zeros((self.num_anchors_per_scale, grid_size, 4))
                    for grid_size in self.grids]
-
         # loop over bboxes and assign cells with objects
         for bbox in bboxes:
-            iou_anchors = iou_width(torch.tensor(bbox[1:2]),  # width
-                                    self.anchors)
-            anchor_indices = iou_anchors.argsort(descending=True, dim=0)
             x, width, class_label = bbox
-            has_anchor = [False, False, False]
-
+            # argsort the anchors by best IOU over GT width
+            iou_anchors = iou_width(torch.tensor(width), self.anchors)
+            anchor_indices = iou_anchors.argsort(descending=True, dim=0)
+            # assign one best possible anchor for each scale
+            scale_has_anchor = [False for _ in range(len(self.grids))]
             for idx in anchor_indices:
-                scale_idx = idx // self.num_anchors_per_scale # 0, 1, 2
-                anchor_on_scale = idx % self.num_anchors_per_scale # 0, 1, 2
+                scale_idx, anchor_on_scale_idx = self._scale_anchor_index(idx)
                 grid_size = self.grids[scale_idx]
-                # calculate which cell a label relates to
-                x_cell = int(grid_size * x)
-                anchor_taken = targets[scale_idx][anchor_on_scale, x_cell, 0]
-                if not anchor_taken and not has_anchor[scale_idx]:
+                # calculate which cell the label is defined on
+                x_cell = grid_size * x
+                x_cell_idx = int(x_cell)
+                to_be_assigned_target = targets[scale_idx][anchor_on_scale_idx, x_cell_idx, :]
+                anchor_taken = to_be_assigned_target[0]
+                if not anchor_taken and not scale_has_anchor[scale_idx]:
                     # set objectness score to 0
-                    targets[scale_idx][anchor_on_scale, x_cell, 0] = 1
-                    x_cell_rel = (x * grid_size) - x_cell
+                    x_cell_rel = x_cell - x_cell_idx
                     cell_width = width * grid_size
-                    box_coordinates = torch.Tensor([x_cell_rel, cell_width])
                     # set the other values for the given object
-                    targets[scale_idx][anchor_on_scale, x_cell, 1:3] = box_coordinates
-                    targets[scale_idx][anchor_on_scale, x_cell, 3] = int(class_label)
-                    has_anchor[scale_idx] = True
+                    to_be_assigned_target[0] = 1
+                    to_be_assigned_target[1] = x_cell_rel
+                    to_be_assigned_target[2] = cell_width
+                    to_be_assigned_target[3] = int(class_label)
+                    if self._one_anchor_per_scale:
+                        scale_has_anchor[scale_idx] = True
                 elif not anchor_taken and iou_anchors[idx] > self.ignore_iou_thresh:
                     # ignore prediction by setting objectness to -1
-                    targets[scale_idx][anchor_on_scale, x_cell, 0] = -1
+                    # but only if the anchor has not yet been taken!
+                    to_be_assigned_target[0] = -1
         return series, tuple(targets)
+
+    def _scale_anchor_index(self, idx) :
+        """Returns the scale_idx and anchor_on_scale_idx
+
+        We have predefined anchors for every scale like the following
+        >>> anchors = [
+        >>>    [s0, s1, s2], # anchors for grid with 13 cells
+        >>>    [s3, s4, s5], # anchors for grid with 26 cells
+        >>>    [s6, s7, s8], # anchors for grid with 52 cells
+        >>> ]
+
+        we are given de index `idx` of a sorted list
+        [idx_1, idx_2, idx_3]
+        where the indices are in [0, 8]
+
+        if the idx is 4 we want to be able to acces anchor s4
+        To do this we need to return which `gridsize` s4 belongs
+        to and which anchor of that list we are accessing
+
+        To that end, we calculate the idx // num_grids
+        to get the grid idx and idx % num_grids to get the
+        anchor idx
+
+        we now want to know the
+        """
+        scale_idx = idx // self.num_anchors_per_scale # 0, 1, 2
+        anchor_on_scale_idx = idx % self.num_anchors_per_scale # 0, 1, 2
+        return scale_idx, anchor_on_scale_idx
 
 
 if __name__ == "__main__":
