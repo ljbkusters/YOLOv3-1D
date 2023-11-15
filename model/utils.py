@@ -18,16 +18,21 @@ from tqdm import tqdm
 from model import config
 
 
-def iou_width(boxes1, boxes2):
-    """
+def iou_width(w1, w2):
+    """IOU of two widths
+
+    Assumes boxes are are centered at the same point.
+    This is used for selecting the best GT anchor for a given
+    target label.
+
     Parameters:
         boxes1 (tensor): width of the first bounding boxes
         boxes2 (tensor): width of the second bounding boxes
     Returns:
         tensor: Intersection over union of the corresponding boxes
     """
-    intersection = torch.min(boxes1, boxes2)
-    union = boxes1 + boxes2 - intersection
+    intersection = torch.min(w1, w2)
+    union = w1 + w2 - intersection
     return intersection / union
 
 
@@ -172,6 +177,7 @@ def mean_average_precision(
         for key, val in amount_bboxes.items():
             amount_bboxes[key] = torch.zeros(val)
 
+        # TODO is this the same for me?
         # sort by box probabilities which is index 2
         detections.sort(key=lambda x: x[2], reverse=True)
         TP = torch.zeros((len(detections)))
@@ -242,7 +248,7 @@ def plot_curve(curve, boxes):
     # Create bounding domains by axvlines patch
     for box in boxes:
         assert len(box) == 4, "box should contain class pred, confidence, x, width"
-        class_label, objectness, x0, x1 = box
+        class_label, conf, x0, x1 = box
         cl = int(class_label)
         onset = x0 - x1/2
         end = x0 + x1/2
@@ -310,10 +316,13 @@ def get_evaluation_bboxes(
             for batch_idx, (box) in enumerate(boxes_scale_i):
                 bboxes[batch_idx] += box
 
+        # hacky solution for plotting
+        true_bboxes = [[[c, 1., xm, w] for (xm, w, c) in bi] for bi in labels]
+        # all_true_boxes.extend(true_bboxes)
         # we just want one bbox for each label, not one for each scale
-        true_bboxes = cells_to_bboxes(
-            labels[2], anchor, S=S, is_preds=False
-        )
+        # true_bboxes = cells_to_bboxes(
+        #     labels[2], anchor, S=S, is_preds=False
+        # )
 
         for idx in range(batch_size):
             nms_boxes = non_max_suppression(
@@ -327,7 +336,7 @@ def get_evaluation_bboxes(
                 all_pred_boxes.append([train_idx] + nms_box)
 
             for box in true_bboxes[idx]:
-                if box[1] > threshold:
+                #if box[1] > threshold:
                     all_true_boxes.append([train_idx] + box)
 
             train_idx += 1
@@ -376,6 +385,11 @@ def cells_to_bboxes(predictions, anchors, S, is_preds=True):
         scores = torch.sigmoid(predictions[..., 0:1])
         # convert one_hot class predictions to single best class
         best_class = torch.argmax(predictions[..., 3:], dim=-1).unsqueeze(-1)
+        _all_class_pred = torch.sigmoid(predictions[..., 3:])
+        # class score
+        # objectness_scores = torch.sigmoid(predictions[..., 0:1])
+        # best_class_scores = torch.sigmoid(predictions[..., best_class:best_class+1])
+        # scores = torch.prod(objectness_scores, best_class_scores)
     else:
         # simply take the score
         scores = predictions[..., 0:1]
@@ -416,14 +430,32 @@ def check_class_accuracy(model, loader, threshold):
             obj = y[i][..., 0] == 1 # in paper this is Iobj_i
             noobj = y[i][..., 0] == 0  # in paper this is Iobj_i
 
+            # precision = TP / (TP + FP)    (how many retreived items were correct)
+            # recall = TP / (TP + FN)       (how many relevant items were seen)
+            #F1 = 2 * precision * recall / (precision + recall)
+
+            # A TP is when an object is found and it is the right class
+            # a FP is when an object is found but it is the wrong class
+            # a FN is when no obj was found when there was an obj
+
+            # over each batch, take argmax of class predictions
+            # and compare to GT
             correct_class += torch.sum(
                 torch.argmax(out[i][..., 3:][obj], dim=-1) == y[i][..., 3][obj]
             )
+            # each GT object is also a class -> total classes = sum(obj)
             tot_class_preds += torch.sum(obj)
 
+            # if objectness score > thresh then it is counted as an object
             obj_preds = torch.sigmoid(out[i][..., 0]) > threshold
+
+            # true positives are those predictions where an object
+            # was present in GT label
             correct_obj += torch.sum(obj_preds[obj] == y[i][..., 0][obj])
             tot_obj += torch.sum(obj)
+
+            # true negatives are those predictions where no object
+            # was present in GT label
             correct_noobj += torch.sum(obj_preds[noobj] == y[i][..., 0][noobj])
             tot_noobj += torch.sum(noobj)
 
@@ -468,9 +500,19 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
 
+def my_collate_fn(batch):
+    data = torch.stack([torch.tensor(item[0]) for item in batch])
+    target = [item[1] for item in batch]
+    return [data, target]
 
-def get_loaders(train_csv_path, test_csv_path, shuffle=True):
+def get_loaders(train_csv_path, test_csv_path, shuffle=True,
+                return_bboxes=False,):
     from model.dataset import YOLO1DDataset
+
+    if return_bboxes:
+        collate_fn = my_collate_fn
+    else:
+        collate_fn = None
 
     IMAGE_SIZE = config.IMAGE_SIZE
     train_dataset = YOLO1DDataset(
@@ -480,6 +522,7 @@ def get_loaders(train_csv_path, test_csv_path, shuffle=True):
         series_dir=config.SERIES_DIR,
         label_dir=config.LABEL_DIR,
         anchors=config.ANCHORS_1D,
+        return_bboxes=return_bboxes,
     )
     test_dataset = YOLO1DDataset(
         test_csv_path,
@@ -488,6 +531,7 @@ def get_loaders(train_csv_path, test_csv_path, shuffle=True):
         series_dir=config.SERIES_DIR,
         label_dir=config.LABEL_DIR,
         anchors=config.ANCHORS_1D,
+        return_bboxes=return_bboxes,
     )
     train_loader = DataLoader(
         dataset=train_dataset,
@@ -496,6 +540,7 @@ def get_loaders(train_csv_path, test_csv_path, shuffle=True):
         pin_memory=config.PIN_MEMORY,
         shuffle=shuffle,
         drop_last=False,
+        collate_fn=collate_fn,
     )
     test_loader = DataLoader(
         dataset=test_dataset,
@@ -504,6 +549,7 @@ def get_loaders(train_csv_path, test_csv_path, shuffle=True):
         pin_memory=config.PIN_MEMORY,
         shuffle=shuffle,
         drop_last=False,
+        collate_fn=collate_fn,
     )
 
     train_eval_dataset = YOLO1DDataset(
@@ -513,6 +559,7 @@ def get_loaders(train_csv_path, test_csv_path, shuffle=True):
         series_dir=config.SERIES_DIR,
         label_dir=config.LABEL_DIR,
         anchors=config.ANCHORS_1D,
+        return_bboxes=return_bboxes,
     )
     train_eval_loader = DataLoader(
         dataset=train_eval_dataset,
@@ -521,6 +568,7 @@ def get_loaders(train_csv_path, test_csv_path, shuffle=True):
         pin_memory=config.PIN_MEMORY,
         shuffle=shuffle,
         drop_last=False,
+        collate_fn=collate_fn,
     )
 
     return train_loader, test_loader, train_eval_loader

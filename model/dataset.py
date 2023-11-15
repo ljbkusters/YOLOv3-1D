@@ -81,7 +81,7 @@ class YOLO1DDataset(torch.utils.data.Dataset):
             bboxes = augmentations["bboxes"]
 
         if self.return_bboxes:
-            return series, bboxes
+            return series, torch.tensor(bboxes)
 
         # Target specification
         # define a target vector [obj, x, w, class]
