@@ -29,9 +29,7 @@ Currently a decent MAP score of 0.86 is reached. This could no doubt be improved
 
 # Visualization of performance
 To visualize the performance `visualize_performance.py` script is added. This script
-plots some of the curves with ground truth labels in green and predicted domains in red. Some examples are shown below.
-
-### Some examples of correct classifications:
+plots some of the curves with ground truth labels in green and predicted domains in red. Some examples are shown below. Note that ground truth colouring is generally hidden behind the red prediction labels due to good fitting.
 
 Most classifications fall into this category
 
@@ -41,32 +39,8 @@ Most classifications fall into this category
 
 ![lorentzian_prediction](figures/lorentzian_detection.png)
 
-### Some examples of missed classifications:
-
-A significant but smaller portion is never classified at all. This is the biggest
-issue with the current state of the network on this dataset.
-
-![missed_gaussian](figures/missed_gaussian.png)
-
-![missed_lorentzian](figures/missed_lorentzian.png)
-
-### An example of a double classification
-
-A very small minority of cases has a double prediction
-
-![double prediction](figures/double_prediction.png)
-
-### An example of a bad bounding box classification
-
-Only one example I personally saw had a bad bounding box prediction (width was significantly too small)
-
-![bad bbox](figures/rare_bad_bbox.png)
-
+![two_detections_in_one_curve](figures/two_detections.png)
 
 # Discussion
 The current state of this repository implements a working 1D curve detector based on
-the standard YOLOv3 architecture where 2D convolutions have been replaced with 1D convolutions. The output shape of the network has also correspondingly been changed such that 1D domains are predicted. Other than that no major changes have been made to the network architecture. When testing the network on a rudamentary dataset, an `mAP@50-95` of 0.86 was achieved, which was deemed good enough for this minimum viable example. The current state of this repo should be a nice stepping stone for anyone wanting to implement their own 1D curve detector. The network was trained only for 30 epochs. More training did not seem to significantly improve the mAP value (in fact the mAP value seemed to decrease, maybe due to overfitting).
-
-Some issues with the performance on the given dataset are that objects are sometimes not observed. When observed however, the bounding box predictions are always very good. In some rare cases two classes are predicted for the same object, this may be due to inherrently similar data (gaussian, skew gaussian, lorentzian peaks) or perhaps due to some sub-optimal network hyperparameters. In general the confidence of many predictions is still fairly low. This could be enhanced by changing the relative importance of object detection in the loss function (currently `no_obj` and `bbox` loss are heavily weighted).
-
-Improvements in the networks architecture, bbox default anchors and perhaps better data (more classes, better labeling, especially for lorentzian peaks) could help improve the network's mAP value.
+the standard YOLOv3 architecture where 2D convolutions have been replaced with 1D convolutions. The output shape of the network has also correspondingly been changed such that 1D domains are predicted. Other than that no major changes have been made to the network architecture. When testing the network on a rudamentary dataset, an `mAP@50-95` of 0.99 was achieved, which was deemed good enough for this minimum viable example. The current state of this repo should be a nice stepping stone for anyone wanting to implement their own 1D curve detector. The network was trained for 100 epochs.
