@@ -146,19 +146,21 @@ def main():
                 test_loader,
                 threshold=model.config.CONF_THRESHOLD,
             )
-            pred_boxes, true_boxes = model.utils.get_evaluation_bboxes(
-                test_loader, yolov3,
-                iou_threshold=model.config.NMS_IOU_THRESH,
-                anchors=model.config.ANCHORS_1D,
-                threshold=model.config.CONF_THRESHOLD,
-            )
-            map_val = model.utils.mean_average_precision(
-                pred_boxes, true_boxes,
-                iou_threshold=model.config.NMS_IOU_THRESH,
-                box_format="midpoint",
-                num_classes=model.config.NUM_CLASSES,
-            )
-            print(f"MEAN AVERAGE PRECISION: {map_val}")
+            # TODO the function below is broken
+            # See Issue #48
+            # pred_boxes, true_boxes = model.utils.get_evaluation_bboxes(
+            #     test_loader, yolov3,
+            #     iou_threshold=model.config.NMS_IOU_THRESH,
+            #     anchors=model.config.ANCHORS_1D,
+            #     threshold=model.config.CONF_THRESHOLD,
+            # )
+            # map_val = model.utils.mean_average_precision(
+            #     pred_boxes, true_boxes,
+            #     iou_threshold=model.config.NMS_IOU_THRESH,
+            #     box_format="midpoint",
+            #     num_classes=model.config.NUM_CLASSES,
+            # )
+            # print(f"MEAN AVERAGE PRECISION: {map_val}")
         lr_scheduler.step()
 
 
